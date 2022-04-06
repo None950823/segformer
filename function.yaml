@@ -1,0 +1,67 @@
+metadata:
+  name: public.mabotan.segformer
+  namespace: cvat
+  annotations:
+    name: segformer
+    type: detector
+    framework: pytorch
+    spec: |
+      [
+        { "id": 1, "name": "background" },
+        { "id": 2, "name": "void" },
+        { "id": 3, "name": "dividing" },
+        { "id": 4, "name": "guiding" },
+        { "id": 5, "name": "stopping" },
+        { "id": 6, "name": "chevron" },
+        { "id": 7, "name": "parking" },
+        { "id": 8, "name": "zebra" },
+        { "id": 9, "name": "turn" },
+        { "id": 10, "name": "reduction" },
+        { "id": 11, "name": "attention" },
+        { "id": 12, "name": "no parking" },
+      ]      
+
+spec:
+  description: RetinaNet R101 from Detectron2
+  runtime: 'python:3.6'
+  handler: main:handler
+  eventTimeout: 30s
+  env:
+    - name: NUCLIO_PYTHON_EXE_PATH
+      value: /opt/nuclio/segformer
+
+  build:
+    image: cvat/public.mabotan.segformer
+    baseImage: ubuntu:20.04
+
+    directives:
+      preCopy:
+        - kind: WORKDIR
+          value: /opt/nuclio
+        - kind: RUN
+          value: conda create -y -n segformer python=3.6
+        - kind: RUN
+          value: conda activate segformer
+        - kind: RUN
+          value: conda install pytorch==1.7.1 torchvision==0.8.2 torchaudio==0.7.2 cpuonly -c pytorch
+        - kind: RUN
+          value: pip install opencv-python
+        - kind: RUN
+          value: cp ~/work/CVAT_prepare/segformer_b0.pt /opt/nuclio/segformer/
+        - kind: ENV
+          value: filename=segformer_b0.pt
+
+  triggers:
+      myHttpTrigger:
+        maxWorkers: 2
+        kind: 'http'
+        workerAvailabilityTimeoutMilliseconds: 10000
+        attributes:
+          maxRequestBodySize: 33554432 # 32MB
+
+  platform:
+    attributes:
+      restartPolicy:
+        name: always
+        maximumRetryCount: 3
+      mountMode: volume
